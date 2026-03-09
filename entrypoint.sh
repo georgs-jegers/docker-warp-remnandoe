@@ -42,6 +42,29 @@ license_failed_matches() {
     [ "$stored_hash" = "$current_hash" ]
 }
 
+apply_policy_routing() {
+    table="${WARP_TABLE:-51820}"
+    warp4=$(ip -4 -o addr show dev warp scope global 2>/dev/null | awk '{print $4}' | head -n1)
+    warp6=$(ip -6 -o addr show dev warp scope global 2>/dev/null | awk '{print $4}' | head -n1)
+
+    if [ -z "$warp4" ]; then
+        warn "No IPv4 address found on warp interface; skipping policy routing"
+        return 0
+    fi
+
+    ip route replace default dev warp table "$table" 2>/dev/null || true
+    while ip rule del from "${warp4%/*}" lookup "$table" 2>/dev/null; do :; done
+    ip rule add from "$warp4" lookup "$table" 2>/dev/null || true
+
+    if [ -n "$warp6" ]; then
+        ip -6 route replace default dev warp table "$table" 2>/dev/null || true
+        while ip -6 rule del from "$warp6" lookup "$table" 2>/dev/null; do :; done
+        ip -6 rule add from "$warp6" lookup "$table" 2>/dev/null || true
+    fi
+
+    ok "Policy routing configured for warp (table $table)"
+}
+
 echo ""
 printf "\033[1;96m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
 printf "\033[1;96m  \033[0m \033[1;97mDocker\033[0m \033[1;36mWARP\033[0m \033[1;97mNative\033[0m\n"
@@ -176,6 +199,8 @@ else
     wg-quick up warp || error_exit "Failed to start WARP interface"
     ok "WARP interface started"
 fi
+
+apply_policy_routing
 
 # Check connection status
 info "Checking WARP connection status..."
