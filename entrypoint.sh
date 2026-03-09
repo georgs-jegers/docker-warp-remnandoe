@@ -120,20 +120,25 @@ else
     info "Generating WARP configuration..."
     wgcf generate || error_exit "Failed to generate WARP configuration"
 
-    # Apply WARP+ license if provided
+    # Apply WARP+ license if provided, unless this same key already failed before.
     if [ -n "$WARP_LICENSE" ]; then
-        info "Applying WARP+ license..."
-        if wgcf update --license-key "$WARP_LICENSE" 2>&1; then
-            ok "WARP+ license applied successfully"
-            info "Regenerating configuration with WARP+..."
-            wgcf generate || error_exit "Failed to regenerate WARP+ configuration"
-            ok "WARP+ configuration generated"
-            get_license_hash "$WARP_LICENSE" > /etc/wireguard/.license_hash
-            rm -f /etc/wireguard/.license_failed_hash
-        else
-            warn "Failed to apply WARP+ license. Check your key."
-            get_license_hash "$WARP_LICENSE" > /etc/wireguard/.license_failed_hash
+        if license_failed_matches; then
+            warn "Skipping WARP+ activation: this license key previously failed"
             info "Continuing with free WARP"
+        else
+            info "Applying WARP+ license..."
+            if wgcf update --license-key "$WARP_LICENSE" 2>&1; then
+                ok "WARP+ license applied successfully"
+                info "Regenerating configuration with WARP+..."
+                wgcf generate || error_exit "Failed to regenerate WARP+ configuration"
+                ok "WARP+ configuration generated"
+                get_license_hash "$WARP_LICENSE" > /etc/wireguard/.license_hash
+                rm -f /etc/wireguard/.license_failed_hash
+            else
+                warn "Failed to apply WARP+ license. Check your key."
+                get_license_hash "$WARP_LICENSE" > /etc/wireguard/.license_failed_hash
+                info "Continuing with free WARP"
+            fi
         fi
     fi
 
