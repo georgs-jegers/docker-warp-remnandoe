@@ -1,0 +1,14 @@
+services:
+  warp:
+    image: ghcr.io/georgs-jegers/docker-warp-remnandoe:latest
+    container_name: warp-native
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    # environment:
+    #   - WARP_LICENSE=your-warp-plus-key  # Optional: WARP+ license key
+    volumes:
+      - /opt/docker-warp-native:/etc/wireguard
+      - /lib/modules:/lib/modules:ro
+    restart: always
